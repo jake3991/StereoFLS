@@ -1,0 +1,5 @@
+<launch>
+    <node pkg="stereo_sonar" name="stereo_sonar" type="stereo_sonar_node.py" output="screen">
+        <rosparam command="load" file="$(find stereo_sonar)/config/match.yaml"/>
+    </node>
+</launch>
