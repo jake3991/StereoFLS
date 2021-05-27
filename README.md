@@ -1,5 +1,4 @@
-# Stereo-Sonar
-This repo contains the recently improved code derived from "Fusing Concurrent Orthogonal Wide-aperture Sonar Images for Dense Underwater 3D Reconstruction" (IROS 2020) and "Predictive  3D  Sonar  Mapping  of  Underwater  Environments via  Object-specific  Bayesian  Inference" (ICRA 2021). Note that this codebase is ros native and will require a ros installation. It can be used without ros, but will require some work. 
+This repo contains the recently improved/changed code derived from the papers "Fusing Concurrent Orthogonal Wide-aperture Sonar Images for Dense Underwater 3D Reconstruction" (IROS 2020) and "Predictive  3D  Sonar  Mapping  of  Underwater  Environments via  Object-specific  Bayesian  Inference" (ICRA 2021). Note that this codebase is ros native and will require a ros installation. It can be used without ros, but will require some work. 
 
 # Dependency Install 
 Install pybind11
