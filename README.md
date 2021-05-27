@@ -40,6 +40,7 @@ This system is built around our custom BlueROV2-heavy and its software package, 
   - I have included a launch file to get you started. Follow the above install instuctuions and then call
     - roslaunch stereo_sonar stereoSonar.launch
   - pybind11 has known some issues with python3, some of which can effect your system, you have been warned!
+  - This is not the worlds most efficent implmenation (python), it is written to be easy to understand and modify
 
 
 # ReadMe to dos
