@@ -33,11 +33,13 @@ catkin_make
 # Usage guide
 This system is built around our custom BlueROV2-heavy and its software package, Argonaut (https://github.com/jake3991/Argonaut). The python node subscribes to two image topics and performs sensor fusion, yielding a point cloud. Some important notes. 
   - You may need to change the topics subscribed to, and the message type
+  - the rospackage is "stereo_sonar" this is important when using roslauch/rosrun
   - The way we convert images from polar to cartesian is based on our real-world sonar driver. You will likely need to change this, see the function img2Real.
   - I highly recommend reading through the python script stereoSonarCartisian.py, this script is the meat of the code. This script has been commented to stand on its own, marking recommend changes and potential pitfalls. 
   - CFAR is the feature extractor of choice, a CPP implementation is included in this repo and is the original work of Jinkun Wang
   - I highly recommend tuning CFAR as best as you can, garbage in garbage out. Also you may want to consider alternate feature extraction tools. 
-  - I have included a launch file to get you started
+  - I have included a launch file to get you started. Follow the above install instuctuions and then call
+    - roslaunch stereo_sonar stereoSonar.launch
   - pybind11 has known some issues with python3, some of which can effect your system, you have been warned!
 
 
