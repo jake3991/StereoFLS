@@ -49,6 +49,8 @@ This system is built around our custom BlueROV2-heavy and its software package, 
 # ReadMe to dos
   - config file parameters guide
   - some nice gifs
+# Other to dos
+  - add type hints to documentation
 
 # Citation
 If you use this repo in your work, please cite the following papers. 
