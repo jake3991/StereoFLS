@@ -1,14 +1,8 @@
 import math
-import sys
-
-if sys.version_info >= (3, 5):
-    import typing
-
 import numpy as np
 from scipy.optimize import root
 
 from . import cfar
-
 
 class CFAR(object):
     """
@@ -19,29 +13,28 @@ class CFAR(object):
     """
 
     def __init__(self, Ntc, Ngc, Pfa, rank=None):
-        # type: (int, int, float, typing.Optional[int]) -> None
-        self.Ntc = Ntc  # number of training cells
+        self.Ntc = Ntc #number of training cells
         assert self.Ntc % 2 == 0
-        self.Ngc = Ngc  # number of guard cells
+        self.Ngc = Ngc #number of guard cells
         assert self.Ngc % 2 == 0
-        self.Pfa = Pfa  # false alarm rate
-        if rank is None:  # matrix rank
+        self.Pfa = Pfa #false alarm rate
+        if rank is None: #matrix rank
             self.rank = self.Ntc / 2
         else:
             self.rank = rank
             assert 0 <= self.rank < self.Ntc
 
-        # threshold factor calculation for the 4 variants of CFAR
+        #threshold factor calculation for the 4 variants of CFAR
         self.threshold_factor_CA = self.calc_WGN_threshold_factor_CA()
         self.threshold_factor_SOCA = self.calc_WGN_threshold_factor_SOCA()
         self.threshold_factor_GOCA = self.calc_WGN_threshold_factor_GOCA()
         self.threshold_factor_OS = self.calc_WGN_threshold_factor_OS()
 
         self.params = {
-            "CA": (self.Ntc / 2, self.Ngc / 2, self.threshold_factor_CA),
-            "SOCA": (self.Ntc / 2, self.Ngc / 2, self.threshold_factor_SOCA),
-            "GOCA": (self.Ntc / 2, self.Ngc / 2, self.threshold_factor_GOCA),
-            "OS": (self.Ntc / 2, self.Ngc / 2, self.rank, self.threshold_factor_OS),
+            "CA": (self.Ntc // 2, self.Ngc // 2, self.threshold_factor_CA),
+            "SOCA": (self.Ntc // 2, self.Ngc // 2, self.threshold_factor_SOCA),
+            "GOCA": (self.Ntc // 2, self.Ngc // 2, self.threshold_factor_GOCA),
+            "OS": (self.Ntc // 2, self.Ngc // 2, self.rank, self.threshold_factor_OS),
         }
         self.detector = {
             "CA": cfar.ca,
@@ -57,7 +50,6 @@ class CFAR(object):
         }
 
     def __str__(self):
-        # type: () -> str
         return "".join(
             [
                 "CFAR Detector Information\n",
@@ -75,11 +67,9 @@ class CFAR(object):
         )
 
     def calc_WGN_threshold_factor_CA(self):
-        # type: () -> float
         return self.Ntc * (self.Pfa ** (-1.0 / self.Ntc) - 1)
 
     def calc_WGN_threshold_factor_SOCA(self):
-        # type: () -> float
         x0 = self.calc_WGN_threshold_factor_CA()
         for ratio in np.logspace(-2, 2, 10):
             ret = root(self.calc_WGN_pfa_SOCA, x0 * ratio)
@@ -88,7 +78,6 @@ class CFAR(object):
         raise ValueError("Threshold factor of SOCA not found")
 
     def calc_WGN_threshold_factor_GOCA(self):
-        # type: () -> float
         x0 = self.calc_WGN_threshold_factor_CA()
         for ratio in np.logspace(-2, 2, 10):
             ret = root(self.calc_WGN_pfa_GOCA, x0 * ratio)
@@ -97,7 +86,6 @@ class CFAR(object):
         raise ValueError("Threshold factor of GOCA not found")
 
     def calc_WGN_threshold_factor_OS(self):
-        # type: () -> float
         x0 = self.calc_WGN_threshold_factor_CA()
         for ratio in np.logspace(-2, 2, 10):
             ret = root(self.calc_WGN_pfa_OS, x0 * ratio)
@@ -106,10 +94,9 @@ class CFAR(object):
         raise ValueError("Threshold factor of OS not found")
 
     def calc_WGN_pfa_GOSOCA_core(self, x):
-        # type: (float) -> float
         x = float(x)
         temp = 0.0
-        for k in range(self.Ntc / 2):
+        for k in range(int(self.Ntc / 2)):
             l1 = math.lgamma(self.Ntc / 2 + k)
             l2 = math.lgamma(k + 1)
             l3 = math.lgamma(self.Ntc / 2)
@@ -117,17 +104,14 @@ class CFAR(object):
         return temp * (2 + x / (self.Ntc / 2)) ** (-self.Ntc / 2)
 
     def calc_WGN_pfa_SOCA(self, x):
-        # type: (float) -> float
         return self.calc_WGN_pfa_GOSOCA_core(x) - self.Pfa / 2
 
     def calc_WGN_pfa_GOCA(self, x):
-        # type: (float) -> float
         x = float(x)
         temp = (1.0 + x / (self.Ntc / 2)) ** (-self.Ntc / 2)
         return temp - self.calc_WGN_pfa_GOSOCA_core(x) - self.Pfa / 2
 
     def calc_WGN_pfa_OS(self, x):
-        # type: (float) -> float
         l1 = math.lgamma(self.Ntc + 1)
         l2 = math.lgamma(self.Ntc - self.rank + 1)
         l4 = math.lgamma(x + self.Ntc - self.rank + 1)
@@ -135,14 +119,12 @@ class CFAR(object):
         return math.exp(l1 - l2 + l4 - l6) - self.Pfa
 
     def detect(self, mat, alg="CA"):
-        # type: (np.ndarray, str) -> np.ndarray
         """
         Return target mask array.
         """
         return self.detector[alg](mat, *self.params[alg])
 
     def detect2(self, mat, alg="CA"):
-        # type: (np.ndarray, str) -> np.ndarray
         """
         Return target mask array and threshold array.
         """
