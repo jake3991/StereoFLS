@@ -2,21 +2,21 @@
 horizontalFOV: 130.0
 transformation: 0.1
 verticalAperture: 20.0
-horizontalTopic: "/sonar_oculus_node/M750d/ping"
-verticalTopic: "/sonar_oculus_node/M1200d/ping"
+horizontalTopic: "/rexrov/forward_sonar_horiz/raw_sonar"
+verticalTopic: "/rexrov/forward_sonar_vert/raw_sonar"
 
 #define the matching paramters
-uncertaintyMax: .98
-patchSize: 1
+uncertaintyMax: .97
+patchSize: 6
 
 #define CFAR for the horizontal sonar
-tcHorizontal: 20
-gcHorizontal: 10
+tcHorizontal: 80
+gcHorizontal: 80
 pfaHorizontal: .2
-thresholdHorizontal: 50.
+thresholdHorizontal: 137.
 
 #define CFAR for the vertical sonar
-tcVertical: 20
+tcVertical: 10
 gcVertical: 10
-pfaVertical: .2
-thresholdVertical: 50.
+pfaVertical: .1
+thresholdVertical: 137.

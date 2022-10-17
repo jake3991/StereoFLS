@@ -9,12 +9,12 @@ import cv2
 import cv_bridge
 import numpy as np
 import rospy
+import ros_numpy
 import sensor_msgs.point_cloud2 as pc2
 from message_filters import ApproximateTimeSynchronizer, Subscriber
 from scipy.interpolate import interp1d
-from sensor_msgs.msg import PointCloud2, PointField
+from sensor_msgs.msg import PointCloud2, PointField, Image
 from sklearn.utils import shuffle
-from sonar_oculus.msg import OculusPing
 from std_msgs.msg import Header
 
 from stereo_sonar.CFAR import *
@@ -66,10 +66,10 @@ class stereoSonar:
 
         # define image subsciber
         self.verticalSonarSub = Subscriber(
-            rospy.get_param(ns + "verticalTopic"), OculusPing
+            rospy.get_param(ns + "verticalTopic"), Image
         )
         self.horizontalSonarSub = Subscriber(
-            rospy.get_param(ns + "horizontalTopic"), OculusPing
+            rospy.get_param(ns + "horizontalTopic"), Image
         )
 
         # define time sync object for both sonar images
@@ -104,6 +104,9 @@ class stereoSonar:
         self.f_bearings = None
         self.to_rad = lambda bearing: bearing * np.pi / 18000
         self.REVERSE_Z = 1
+
+        self.imagePub = rospy.Publisher("hori_features",Image,queue_size = 5)
+        self.imagePub_2 = rospy.Publisher("vert_features",Image,queue_size = 5)
 
     def generate_map_xy(self, ping):
         # type: (OculusPing) -> None
@@ -178,34 +181,34 @@ class stereoSonar:
         pixels, x, y, range (in meters) and bearing in degrees
         """
 
-        # convert to meters
-        x = points[:, 1] - self.cols / 2.0
-        x = 1 * ((x / float(self.cols / 2.0)) * (self.width / 2.0))
-        y = (-1 * (points[:, 0] / float(self.rows)) * self.height) + self.height
-
-        # check the sonar type
+        #check the sonar type
         if sonar == "vertical":
-            x -= self.transformation
-        elif sonar == "horizontal":
-            pass
-        else:
-            rospy.loginfo("Incorrect sonar info in img2real function!")
+            x = points[:,1] - (1106. / 2.) - self.transformation
+            y = 600 - points[:,0]
+            x = (x / 600.) * 30
+            y = (y / 600.) * 30
 
-        # get range and bearing
-        r = np.sqrt(x ** 2 + y ** 2)
+        else:
+            x = points[:,1] - (1106. / 2.)
+            y = 600 - points[:,0]
+            x = (x / 600.) * 30
+            y = (y / 600.) * 30
+
+        #get range and bearing
+        r = np.sqrt(x**2 + y**2)
         b = np.degrees(np.arctan(x / y))
 
-        # div vertical aperture by two
-        deg = self.verticalAperture / 2.0
+        #div vertical apature by two 
+        deg = self.verticalAperture / 2.
 
-        # filter based on the vertical apature of the companion sonar
-        x = x[(b > -deg) & (b < deg)]  # x meters
-        y = y[(b > -deg) & (b < deg)]  # y meters
-        r = r[(b > -deg) & (b < deg)]  # range meters
-        u = points[:, 0][(b > -deg) & (b < deg)]  # u pixel coords
-        v = points[:, 1][(b > -deg) & (b < deg)]  # v pixel coords
-        b = b[(b > -deg) & (b < deg)]  # bearing in degrees
-
+        #filter based on the vertical apature of the companion sonar
+        x = x[(b > -deg) & (b < deg )]
+        y = y[(b > -deg) & (b < deg )]
+        r = r[(b > -deg) & (b < deg )]
+        u = points[:,0][(b > -deg) & (b < deg )]
+        v = points[:,1][(b > -deg) & (b < deg )]
+        b = b[(b > -deg) & (b < deg )]
+        
         return u, v, x, y, r, b
 
     def extractFeatures(self, img, detector, alg, threshold):
@@ -236,13 +239,13 @@ class stereoSonar:
         peaks &= img > threshold
 
         # convert to cartisian
-        peaks = cv2.remap(peaks, self.map_x, self.map_y, cv2.INTER_LINEAR)
+        # peaks = cv2.remap(peaks, self.map_x, self.map_y, cv2.INTER_LINEAR)
 
         # compile points
         points = np.c_[np.nonzero(peaks)]
 
         # return a numpy array
-        return np.array(points)
+        return np.array(points), np.array(peaks)
 
     def extractPatches(self, v, u, sonar, img, size):
         # type: (np.ndarray, np.ndarray, str, np.ndarray, int) -> typing.List[np.ndarray]
@@ -497,25 +500,14 @@ class stereoSonar:
         msgHorizontal -- horizontal sonar msg
         """
 
-        # generate the mapping from polar to cartisian
-        self.generate_map_xy(msgHorizontal)
+        #parse the horizontal image
+        imgHorizontal = 255 * np.array(self.CVbridge.imgmsg_to_cv2(msgHorizontal)).astype(float)
+        imgHorizontal = np.array(imgHorizontal).astype(np.uint8)
 
-        # decode the compressed horizontal image
-        imgHorizontal = np.fromstring(msgHorizontal.ping.data, np.uint8)
-        imgHorizontal = np.array(cv2.imdecode(imgHorizontal, cv2.IMREAD_COLOR)).astype(
-            np.uint8
-        )
-        imgHorizontal = cv2.cvtColor(imgHorizontal, cv2.COLOR_BGR2GRAY)
+        #parse the vertical image
+        imgVertical = 255 * np.array(self.CVbridge.imgmsg_to_cv2(msgVertical)).astype(float)
+        imgVertical = np.array(imgVertical).astype(np.uint8)
 
-        # decode the compressed vertical image
-        imgVertical = np.fromstring(msgVertical.ping.data, np.uint8)
-        imgVertical = np.array(cv2.imdecode(imgVertical, cv2.IMREAD_COLOR)).astype(
-            np.uint8
-        )
-        imgVertical = cv2.cvtColor(imgVertical, cv2.COLOR_BGR2GRAY)
-
-        # denoise the horizontal image, consider adding this for the vertical image
-        imgHorizontal = cv2.fastNlMeansDenoising(imgHorizontal, None, 10, 7, 21)
 
         # check size, images must be the same size
         if imgHorizontal.shape != imgVertical.shape:
@@ -524,18 +516,19 @@ class stereoSonar:
             )
 
         # get some features using CFAR
-        horizontalFeatures = self.extractFeatures(
+        horizontalFeatures, horizontalFeatureImage  = self.extractFeatures(
             imgHorizontal, "horizontal", "SOCA", self.thresholdHorizontal
         )
-        verticalFeatures = self.extractFeatures(
+        verticalFeatures, verticalFeatureImage = self.extractFeatures(
             imgVertical, "vertical", "SOCA", self.thresholdVertical
         )
 
-        # remap the raw images into cartisian coords
-        imgHorizontal = cv2.remap(
-            imgHorizontal, self.map_x, self.map_y, cv2.INTER_LINEAR
-        )
-        imgVertical = cv2.remap(imgVertical, self.map_x, self.map_y, cv2.INTER_LINEAR)
+        vis_features = False
+        if vis_features:
+            horizontalFeatureImage *= 255
+            verticalFeatureImage *= 255
+            self.imagePub.publish(ros_numpy.image.numpy_to_image(horizontalFeatureImage,"mono8"))
+            self.imagePub_2.publish(ros_numpy.image.numpy_to_image(verticalFeatureImage,"mono8"))
 
         # convert the features to meters and degrees
         uh, vh, xh, yh, rh, bh = self.img2Real(horizontalFeatures, "horizontal")
