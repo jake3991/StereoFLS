@@ -576,7 +576,7 @@ class stereoSonar:
 
             # package the point cloud
             header = Header()
-            header.frame_id = "base_link"
+            header.frame_id = "sonar_link"
             header.stamp = (
                 msgHorizontal.header.stamp
             )  # use input msg timestamp for better sync downstream
