@@ -13,7 +13,7 @@ import ros_numpy
 import sensor_msgs.point_cloud2 as pc2
 from message_filters import ApproximateTimeSynchronizer, Subscriber
 from scipy.interpolate import interp1d
-from sensor_msgs.msg import PointCloud2, PointField, Image
+from sensor_msgs.msg import PointCloud2, PointField, Image, CompressedImage
 from sklearn.utils import shuffle
 from std_msgs.msg import Header
 
@@ -66,10 +66,10 @@ class stereoSonar:
 
         # define image subsciber
         self.verticalSonarSub = Subscriber(
-            rospy.get_param(ns + "verticalTopic"), Image
+            rospy.get_param(ns + "verticalTopic"), CompressedImage
         )
         self.horizontalSonarSub = Subscriber(
-            rospy.get_param(ns + "horizontalTopic"), Image
+            rospy.get_param(ns + "horizontalTopic"), CompressedImage
         )
 
         # define time sync object for both sonar images
@@ -501,13 +501,12 @@ class stereoSonar:
         """
 
         #parse the horizontal image
-        imgHorizontal = 255 * np.array(self.CVbridge.imgmsg_to_cv2(msgHorizontal)).astype(float)
-        imgHorizontal = np.array(imgHorizontal).astype(np.uint8)
+        imgHorizontal = np.fromstring(msgHorizontal.data, np.uint8)
+        imgHorizontal = cv2.imdecode(imgHorizontal, 0)
 
         #parse the vertical image
-        imgVertical = 255 * np.array(self.CVbridge.imgmsg_to_cv2(msgVertical)).astype(float)
-        imgVertical = np.array(imgVertical).astype(np.uint8)
-
+        imgVertical = np.fromstring(msgVertical.data, np.uint8)
+        imgVertical = cv2.imdecode(imgVertical, 0)
 
         # check size, images must be the same size
         if imgHorizontal.shape != imgVertical.shape:
@@ -593,7 +592,7 @@ class stereoSonar:
 
             # package the point cloud
             header = Header()
-            header.frame_id = "base_link"
+            header.frame_id = "sonar_link"
             header.stamp = (
                 msgHorizontal.header.stamp
             )  # use input msg timestamp for better sync downstream

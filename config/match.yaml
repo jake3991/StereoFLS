@@ -2,8 +2,8 @@
 horizontalFOV: 130.0
 transformation: 0.1
 verticalAperture: 20.0
-horizontalTopic: "/rexrov/forward_sonar_horiz/raw_sonar"
-verticalTopic: "/rexrov/forward_sonar_vert/raw_sonar"
+horizontalTopic: "/rexrov/forward_sonar_horiz/raw_sonar_compressed"
+verticalTopic: "/rexrov/forward_sonar_vert/raw_sonar_compressed"
 
 #define the matching paramters
 uncertaintyMax: .97
