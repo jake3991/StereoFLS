@@ -54,6 +54,7 @@ Eigen::MatrixXf matchFeatures(const pybind11::array_t<int>& range_horizontal_dis
     vector<float> bearing_horizontal_matched = {};
     vector<float> range_vertical_matched = {};
     vector<float> bearing_vertical_matched = {};
+    vector<float> matching_confidence = {};
 
     //loop over the possible sub problems
     for (auto subproblem : horizontal_bins){
@@ -75,6 +76,9 @@ Eigen::MatrixXf matchFeatures(const pybind11::array_t<int>& range_horizontal_dis
       vector<int> best_vector;
       auto rng = std::default_random_engine {};
 
+      vector<int> min_values = vector<int>(vertical_problem.size(),INT_MAX);
+      vector<int> max_values = vector<int>(vertical_problem.size(),0);
+
       //test N combinations of feature associations
       for(int step = 0; step < max(horizontal_problem.size(),vertical_problem.size()); ++step){
         
@@ -85,8 +89,15 @@ Eigen::MatrixXf matchFeatures(const pybind11::array_t<int>& range_horizontal_dis
         int i = 0; 
         int diff_total = 0;
         while(i < horizontal_problem.size() && i < vertical_problem.size()){
-          diff_total += (patches_vertical.row(vertical_problem.at(i)) - 
-                  patches_horizontal.row(horizontal_problem.at(i))).cwiseAbs().sum();
+          int diff = (patches_vertical.row(vertical_problem.at(i)) - 
+                      patches_horizontal.row(horizontal_problem.at(i))).cwiseAbs().sum();
+
+          if(diff < min_values.at(i));
+            min_values.at(i) = diff;
+          if(diff > max_values.at(i))
+            max_values.at(i) = diff;
+
+          diff_total += diff;
           i += 1;
         }
 
@@ -108,12 +119,10 @@ Eigen::MatrixXf matchFeatures(const pybind11::array_t<int>& range_horizontal_dis
         bearing_horizontal_matched.push_back(bearing_horizontal.at(j));
         range_vertical_matched.push_back(range_vertical.at(k));
         bearing_vertical_matched.push_back(bearing_vertical.at(k));
+        matching_confidence.push_back((float) min_values.at(i) / (float) max_values.at(i));
 
         i += 1;
       }
-        
-      
-
     }
 
     Eigen::MatrixXf output_matrix(range_horizontal_matched.size(),4);
