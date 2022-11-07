@@ -21,3 +21,8 @@ pybind11_add_module(cfar src/${PROJECT_NAME}/cpp/cfar.cpp)
 set_target_properties(cfar PROPERTIES LIBRARY_OUTPUT_DIRECTORY
   ${CATKIN_DEVEL_PREFIX}/${CATKIN_PACKAGE_PYTHON_DESTINATION}
 )
+
+pybind11_add_module(match src/${PROJECT_NAME}/cpp/match.cpp)
+set_target_properties(match PROPERTIES LIBRARY_OUTPUT_DIRECTORY
+  ${CATKIN_DEVEL_PREFIX}/${CATKIN_PACKAGE_PYTHON_DESTINATION}
+)
