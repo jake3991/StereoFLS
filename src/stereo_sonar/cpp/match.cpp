@@ -145,7 +145,7 @@ Eigen::MatrixXf matchFeatures(const pybind11::array_t<int>& range_horizontal_dis
 
     //build an eigen matrix from the vectors
     //the matrix column structure is [range_horizontal; bearing_horizontal; x_vertical; range_vertical]
-    Eigen::MatrixXf output_matrix(range_horizontal_matched.size(),4);
+    Eigen::MatrixXf output_matrix(range_horizontal_matched.size(),5);
 
     float* ptr_1 = &range_horizontal_matched[0];
     Eigen::Map<Eigen::VectorXf> col_1(ptr_1, range_horizontal_matched.size()); 
@@ -159,10 +159,14 @@ Eigen::MatrixXf matchFeatures(const pybind11::array_t<int>& range_horizontal_dis
     float* ptr_4 = &range_vertical_matched[0];
     Eigen::Map<Eigen::VectorXf> col_4(ptr_4, range_vertical_matched.size()); 
 
+    float* ptr_5 = &matching_confidence[0];
+    Eigen::Map<Eigen::VectorXf> col_5(ptr_5, matching_confidence.size()); 
+
     output_matrix.col(0) = col_1;
     output_matrix.col(1) = col_2;
     output_matrix.col(2) = col_3;
     output_matrix.col(3) = col_4;
+    output_matrix.col(4) = col_5;
 
     return output_matrix;
 
