@@ -5,15 +5,21 @@ verticalAperture: 20.0
 horizontalTopic: "/rexrov/forward_sonar_horiz/raw_sonar_compressed"
 verticalTopic: "/rexrov/forward_sonar_vert/raw_sonar_compressed"
 
+#define which implmentation we want to match the features
+method: cpp # options are cpp or python
+
+#do we want to see the feature images from CFAR? turn on to publish
+visFeatures: True
+
 #define the matching paramters
 uncertaintyMax: .97
 patchSize: 6
 
 #define CFAR for the horizontal sonar
-tcHorizontal: 80
-gcHorizontal: 80
+tcHorizontal: 20
+gcHorizontal: 10
 pfaHorizontal: .2
-thresholdHorizontal: 137.
+thresholdHorizontal: 145.
 
 #define CFAR for the vertical sonar
 tcVertical: 10
