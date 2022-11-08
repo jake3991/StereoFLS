@@ -18,7 +18,7 @@ from sonar_oculus.msg import OculusPing
 from std_msgs.msg import Header
 
 from stereo_sonar.CFAR import *
-
+from stereo_sonar.match import matchFeatures as match_features_cpp
 
 class stereoSonar:
     """A class to handle the multi sonar array"""
@@ -28,6 +28,12 @@ class stereoSonar:
 
         # define vertical transformation between sonars (meters)
         self.transformation = 0.1
+
+        # define the implementation we want used
+        self.method = rospy.get_param(ns + "method")
+
+        #are we going to publish the feature images?
+        self.vis_features = rospy.get_param(ns + "visFeatures")
 
         # define the max uncertainty for a match
         self.uncertaintyMax = rospy.get_param(ns + "uncertaintyMax")
@@ -104,6 +110,11 @@ class stereoSonar:
         self.f_bearings = None
         self.to_rad = lambda bearing: bearing * np.pi / 18000
         self.REVERSE_Z = 1
+
+        self.imagePub = rospy.Publisher("hori_features",Image,queue_size = 5)
+        self.imagePub_2 = rospy.Publisher("vert_features",Image,queue_size = 5)
+
+        self.id = 0
 
     def generate_map_xy(self, ping):
         # type: (OculusPing) -> None
@@ -244,8 +255,7 @@ class stereoSonar:
         # return a numpy array
         return np.array(points)
 
-    def extractPatches(self, v, u, sonar, img, size):
-        # type: (np.ndarray, np.ndarray, str, np.ndarray, int) -> typing.List[np.ndarray]
+    def extractPatches(self, v, u, sonar, img, size, ravel=False):
         """A function to get the patch around all features.
 
         Keyword Arguments:
@@ -276,17 +286,48 @@ class stereoSonar:
             if sonar == "horizontal":
                 patch = paddedImg[i - size : 1 + i + size, j - size : 1 + j + size]
                 if patch.shape == (size * 2 + 1, size * 2 + 1):
+                    if ravel:
+                        patch = np.ravel(patch)
                     patches.append(patch)
             elif sonar == "vertical":
                 patch = np.rot90(
                     paddedImg[i - size : 1 + i + size, j - size : 1 + j + size], -1
                 )
                 if patch.shape == (size * 2 + 1, size * 2 + 1):
+                    if ravel:
+                        patch = np.ravel(patch)
                     patches.append(patch)
             else:
                 rospy.loginfo("Incorrect sonar info in extractPatches function!")
 
         return patches
+
+    def matchFeatures_2(
+        self,
+        rangeHorizontal,  # type: float
+        bearingHorizontal,  # type: float
+        patchesHorizontal,  # type: np.ndarray
+        rangeVertical,  # type: float
+        xVertical,  # type: float
+        patchesVertical,  # type: np.ndarray
+    ):
+
+        # FIX ME, make the image size a ros param
+        # convert range (meters) to pixels
+        rangeHorizontal_discret = np.round(600 * (rangeHorizontal / self.maxRange_horizontal))
+        rangeVertical_discret = np.round(600 * (rangeVertical / self.maxRange_vertical))
+
+        # call the cpp function to do the matching
+        matches =  match_features_cpp(rangeHorizontal_discret,
+                                    rangeHorizontal,
+                                    bearingHorizontal,
+                                    rangeVertical_discret,
+                                    rangeVertical,
+                                    xVertical,
+                                    patchesHorizontal,
+                                    patchesVertical)
+
+        return matches, matches.shape != (0,5)
 
     def matchFeatures(
         self,
@@ -486,7 +527,7 @@ class stereoSonar:
                             )
                         )
 
-        return matches
+        return matches, matches.shape != (5,)
 
     def callback(self, msgVertical, msgHorizontal):
         # type: (OculusPing, OculusPing) -> None
@@ -541,24 +582,41 @@ class stereoSonar:
         uh, vh, xh, yh, rh, bh = self.img2Real(horizontalFeatures, "horizontal")
         uv, vv, xv, yv, rv, bv = self.img2Real(verticalFeatures, "vertical")
 
-        # get the image kernels, used to compare pixel similarity
-        patches_horizontal = np.array(
-            self.extractPatches(vh, uh, "horizontal", imgHorizontal, self.patchSize)
-        )
-        patches_vertical = np.array(
-            self.extractPatches(vv, uv, "vertical", imgVertical, self.patchSize)
-        )
+        if self.method == "python":
 
-        # perform some matching
-        matches = self.matchFeatures(
-            rh, bh, xh, yh, patches_horizontal, rv, bv, xv, yv, patches_vertical
-        )
+            # get the image kernels, used to compare pixel similarity
+            patches_horizontal = np.array(
+                self.extractPatches(vh, uh, "horizontal", imgHorizontal, self.patchSize)
+            )
+            patches_vertical = np.array(
+                self.extractPatches(vv, uv, "vertical", imgVertical, self.patchSize)
+            )
+
+            # perform some matching
+            matches, match_status = self.matchFeatures(
+                rh, bh, xh, yh, patches_horizontal, rv, bv, xv, yv, patches_vertical
+            )
+
+            # remove the first row of zeros, only in the python implmentation
+            matches = np.delete(matches, 0, 0)
+        
+        elif self.method == "cpp":
+
+            # get the image kernels, used to compare pixel similarity
+            patches_horizontal = np.array(
+                self.extractPatches(vh, uh, "horizontal", imgHorizontal, self.patchSize,True)
+            )
+            patches_vertical = np.array(
+                self.extractPatches(vv, uv, "vertical", imgVertical, self.patchSize,True)
+            )
+
+            # perform some matching
+            matches, match_status = self.matchFeatures_2(
+                rh, bh, patches_horizontal, rv, xv, patches_vertical
+            )
 
         # protect for no matches
-        if matches.shape != (5,):
-
-            # clean out the first row of zeros
-            matches = np.delete(matches, 0, 0)
+        if match_status:
 
             # remove uncertain matches
             matches = matches[matches[:, 4] < self.uncertaintyMax]
