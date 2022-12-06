@@ -3,3 +3,7 @@
 scripts/__pycache__/stereoSonarCartisian.cpython-38.pyc
 src/stereo_sonar/__pycache__/CFAR.cpython-38.pyc
 src/stereo_sonar/__pycache__/stereoSonarCartisian.cpython-38.pyc
+.vscode/c_cpp_properties.json
+.vscode/settings.json
+scripts/__pycache__/stereoSonarCartisian.cpython-38.pyc
+src/stereo_sonar/__pycache__/CFAR.cpython-38.pyc
