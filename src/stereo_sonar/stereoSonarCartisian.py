@@ -6,6 +6,7 @@ if sys.version_info >= (3, 5):
     import typing
 
 import cv2
+import time
 import cv_bridge
 import numpy as np
 import rospy
@@ -16,6 +17,7 @@ from scipy.interpolate import interp1d
 from sensor_msgs.msg import PointCloud2, PointField, Image, CompressedImage
 from sklearn.utils import shuffle
 from std_msgs.msg import Header
+import pickle
 
 from stereo_sonar.CFAR import *
 from stereo_sonar.match import matchFeatures as match_features_cpp
@@ -115,6 +117,10 @@ class stereoSonar:
         self.imagePub_2 = rospy.Publisher("vert_features",Image,queue_size = 5)
 
         self.id = 0
+        self.time_log = []
+        self.scene = ""
+        self.keyframe_rotation = None
+        self.keyframe_translation = None
 
     def generate_map_xy(self, ping):
         # type: (OculusPing) -> None
@@ -529,6 +535,16 @@ class stereoSonar:
 
         return matches, matches.shape != (5,)
 
+    def log_times(self):
+        """Log the runtimes
+        """
+
+        with open("/home/jake/Desktop/open_source/src/sonar-SLAM/bruce_slam/notebooks/data_logs/"+
+                                self.scene+'/fusiontimes_'+
+                                str(int(self.keyframe_translation))+"_"+str(int(np.round(np.degrees(self.keyframe_rotation))))+
+                                '.pickle', 'wb') as handle:
+            pickle.dump(self.time_log, handle)
+
     def callback(self, msgVertical, msgHorizontal):
         # type: (OculusPing, OculusPing) -> None
         """Ros callback for dual sonar system.
@@ -537,6 +553,9 @@ class stereoSonar:
         msgVertical -- vertical sonar msg
         msgHorizontal -- horizontal sonar msg
         """
+
+        start_time = time.time()
+        self.id += 1
 
         #parse the horizontal image
         imgHorizontal = np.fromstring(msgHorizontal.data, np.uint8)
@@ -655,3 +674,9 @@ class stereoSonar:
 
             # publish the cloud
             self.cloudPublisher.publish(laserCloudOut)
+
+        # log if we have been asked to
+        if self.keyframe_rotation is not None:
+            self.time_log.append(time.time() - start_time)
+            if len(self.time_log) % 100 == 0:
+                self.log_times()
