@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import rospy
-from stereoSonarCartisian import stereoSonar
+from stereo_sonar.stereoSonarCartisian import stereoSonar
 
 if __name__ == "__main__":
 
